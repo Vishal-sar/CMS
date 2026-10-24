@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 3 tested self sign-up with admin approval and the fee reminders (manual run and cron). New suite /app/backend/tests/test_iter3_signup_reminders.py: 23/23 pass, and the regression suite test_school_api.py still passes (58/58 combined). Backend checks that passed: register creates active=false, pending=true with no password_hash in the response; duplicate email gives 409; weak or short passwords give 422; a pending login with the right password gives 403 'awaiting approval' and with a wrong password gives 401; register returns 429 on the 6th call in the window; admins get a 'New account request' notification; the pending filter works; non-admins get 403 on list and reject; PUT active=true with no profile_id gives 422; approving with a parent profile sets pending=false and login works with that profile attached; reject deletes the request, and repeating it or rejecting a non-pending user gives 404. Reminders: teacher and parent get 403; admin run 1 on a TEST student with one invoice due in 2 days and one 5 days overdue returned due_soon=1, overdue=1, emails_sent=4; the invoices got the reminders.due_soon and reminders.overdue flags; run 2 returned 0/0; reminder-runs lists the runs; the approved parent sees in-app 'Fee due on' and 'Fee overdue' notifications; turning reminders off makes the run return skipped=disabled, and the setting was turned back on. Cron: no or wrong Bearer gives 401; the correct Bearer gives 200 right away; a repeated X-Webhook-Id returns duplicate=true. UI (Playwright): the login page signup-link goes to /signup; the 3 role buttons work; client errors show for empty name, bad email and password mismatch; signup-success appears; a duplicate signup shows the 409 message; a pending login shows the approval message. On Users, 'Pending requests (2)' shows the Awaiting approval badge, the note and the phone. The Approve dialog stays open with no profile; after picking a profile, saving shows the 'Account approved' toast and the user can log in. Reject with confirm removes the request. On Fees, send-reminders-btn shows a toast with the counts. In Settings > Fees, the switch and days-before save; with reminders off the toast reads 'Fee reminders are turned off in Settings'; both values were restored (true, 3). All 4 role logins work.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "Rate-limit middleware (server.py line 25), also login lockout (routes_auth.py line 68)", "issue": "SECURITY: the IP is taken from the first X-Forwarded-For value, which the client controls. Reproduced: after a 429, sending the same request with a different X-Forwarded-For value is accepted again. This bypasses the register, login, forgot and reset rate limits and the per-ip+email brute-force lockout. Use the last (ingress-appended) hop, or a trusted-proxy count, instead of split(',')[0]."},
+      {"endpoint": "run_fee_reminders (routes_reminders.py)", "issue": "The invoice query does not exclude archived, transferred or graduated students, so their parents still get reminder emails. Join with students.status='active', or skip when the student is archived."},
+      {"endpoint": "PUT /api/settings fee_reminder_days_before", "issue": "Negative values are accepted (-3 returns 200). With a negative value the due_soon window is empty, so before-due reminders silently stop. Add a range check, e.g. 0-30."},
+      {"endpoint": "POST /api/cron/fee-reminders", "issue": "A correct Bearer with an empty or non-JSON body returns 400. If the cron caller ever sends no body, the run fails. Make the body optional (treat it as {})."},
+      {"endpoint": "run_fee_reminders", "issue": "The reminders.{kind} flag is set even when every email failed, so failed emails are never retried. A manual run and the cron run at the same moment could also double-send, because there is no atomic claim (e.g. find_one_and_update that sets the flag first)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter3_signup_reminders.py", "/app/test_reports/pytest/iter3.xml", "/app/test_reports/pytest/iter3_all.xml"],
+  "action_items": [
+    "Stop trusting the client-controlled first X-Forwarded-For hop for rate limiting and the login lockout (server.py line 25, routes_auth.py line 68)",
+    "Exclude non-active (archived or transferred) students from fee reminders",
+    "Validate fee_reminder_days_before is in the range 0-30",
+    "Make the cron endpoint body optional",
+    "Optional: do not set the reminder flag when every email failed; claim invoices atomically to avoid double sends"
+  ],
+  "critical_code_review_comments": [
+    "Register returns 409 for an existing email, which reveals which emails have accounts. This is acceptable UX, but the rate limit is the only protection and it can be bypassed through X-Forwarded-For.",
+    "POST /users/{id}/toggle-active on a pending user sets active=true but leaves pending=true, so login stays blocked. That is harmless, but it is inconsistent state.",
+    "There is no DELETE endpoint for approved users; only deactivation exists. Test cleanup used Mongo directly."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter3_signup_reminders.py (new)"],
+  "success_rate": {"backend": "100% (23/23 new, 35/35 regression); 5 minor issues found by code review and probing", "frontend": "100% of requested UI flows passed"},
+  "test_credentials": "From /app/memory/test_credentials.md; all 4 work",
+  "seed_data_creation": "TEST_ signups, parents, a student and invoices were created. Users, parents and invoices were removed via Mongo; the TEST student is archived. Settings were restored to fee_reminders_enabled=true and fee_reminder_days_before=3.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with REACT_APP_BACKEND_URL exported and -n0: pytest tests/test_iter3_signup_reminders.py -n0. The suite sets a random X-Forwarded-For per bucket to dodge the 5/10min register limit; this only works because of the XFF bug. Once that is fixed, the rate-limit tests need rework (e.g. one register test per run). The Approve dialog profile select is field-profile_id, with options field-profile_id-opt-{id}; its submit is user-form-submit."
+}

@@ -27,6 +27,10 @@ async def run_fee_reminders():
             ("overdue", {"due_date": {"$lt": t}, "reminders.overdue": {"$exists": False}})]
     for kind, q in jobs:
         for inv in await db.invoices.find({"status": {"$in": ["unpaid", "partial"]}, **q}, {"_id": 0}).to_list(5000):
+            st = await db.students.find_one({"id": inv["student_id"]}, {"_id": 0, "status": 1, "archived": 1})
+            if not st or st.get("status") != "active" or st.get("archived"): continue
+            claim = await db.invoices.update_one({"id": inv["id"], f"reminders.{kind}": {"$exists": False}}, {"$set": {f"reminders.{kind}": {"at": now_iso(), "status": "sending"}}})
+            if not claim.modified_count: continue
             uids, emails = await recipients(inv["student_id"])
             items = ", ".join(i["name"] for i in inv["items"])
             title = f"Fee {'due on ' + inv['due_date'] if kind == 'due_soon' else 'overdue'}: {inv['student_name']}"
@@ -40,7 +44,10 @@ async def run_fee_reminders():
                 ok = await send_email(e, f"{s['school_name']}: {title}", email_template(title, lines))
                 out["emails_sent" if ok else "emails_failed"] += 1
                 if ok: sent.append(e)
-            await db.invoices.update_one({"id": inv["id"]}, {"$set": {f"reminders.{kind}": {"at": now_iso(), "emails": sent}}})
+            if emails and not sent:
+                await db.invoices.update_one({"id": inv["id"]}, {"$unset": {f"reminders.{kind}": ""}})
+            else:
+                await db.invoices.update_one({"id": inv["id"]}, {"$set": {f"reminders.{kind}": {"at": now_iso(), "emails": sent}}})
             out[kind] += 1
     await db.reminder_runs.insert_one({"at": now_iso(), **out})
     return out
@@ -64,7 +71,8 @@ async def cron_fee_reminders(request: Request):
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], os.environ["WEBHOOK_CRON_SECRET"]): raise HTTPException(401, "Unauthorized")
-    try: env = await request.json()
+    raw = await request.body()
+    try: env = await request.json() if raw.strip() else {}
     except Exception: raise HTTPException(400, "Invalid body")
     run_id = request.headers.get("X-Webhook-Id") or (env or {}).get("run_id")
     if run_id:

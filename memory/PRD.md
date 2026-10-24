@@ -1,32 +1,25 @@
 # PRD — EduPrime School Management System
 
 ## Original problem statement
-"Create a modern, professional, premium-looking School Management System (SMS)… Admin Dashboard and separate role-based dashboards for Teachers, Students, and Parents… real authentication, database persistence, working CRUD operations, role-based permissions…" The full brief covers 26 sections: auth, admin dashboard, students, staff, classes/subjects, attendance, timetable, exams/results/report cards, fees/payments (Razorpay), homework, library, transport, notifications/announcements, parent/student/teacher portals, calendar, leave, reports, settings, sidebar, DB design, security, testing and deliverables.
+"Create a modern, professional, premium-looking School Management System (SMS)… Admin Dashboard and separate role-based dashboards for Teachers, Students, and Parents… real authentication, database persistence, working CRUD operations, role-based permissions…" The full 26-section brief covers auth, dashboard, students, staff, classes, attendance, timetable, exams, fees/payments, homework, library, transport, communication, portals, calendar, leave, reports, settings, security and deliverables.
+Follow-up (2026-10-24): "Create account option add karo" · Turn on Razorpay/Cashfree payments · Fee reminder emails before the due date and when overdue.
 
-User choices: payment providers Razorpay + Cashfree + Stripe (Stripe sandbox isn't available in India, so it was not built). Emergent managed email (Resend). Build everything in one go. Currency INR.
+User choices: Razorpay + Cashfree (Stripe isn't supported in India). Emergent managed email. Build everything at once. Currency INR.
 
 ## Architecture
-- FastAPI (`/app/backend`): core.py (db, auth/JWT cookies, RBAC, scoping, generic CRUD, audit, notify, email, object storage), routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash, seed.py, server.py (middleware for rate limits and CSRF origin checks, indexes, seeding)
-- MongoDB with unique indexes. Demo data is flagged `demo: true` and can be removed in Settings.
-- React (CRA, Tailwind, shadcn): config-driven CrudPage/FormDialog/DataTable, role-based nav and routes, light/dark mode
+FastAPI modules: core, routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash, routes_reminders, seed, server.
+Data is stored in MongoDB. The frontend is React with Tailwind and shadcn. A platform cron is defined in `.emergent/crons.yml`.
 
 ## Personas
-School admin · Teacher · Student · Parent
+Admin · Teacher · Student · Parent
 
-## Implemented (2026-10-24)
-- Auth: login, remember me, show/hide password, forgot/reset by email, change password, refresh tokens, lockout, rate limit, session expiry, admin user management (activate/deactivate, reset)
-- Admin dashboard with live stats and charts, quick actions and activity feed
-- Students: auto admission numbers, CRUD/archive/restore, filters, CSV import/export, promote, section transfer, profile, ID card, history
-- Teachers/staff with employee IDs (salary visible to admins only); parents linked to children; portal login creation
-- Classes and sections (capacity, class teacher), subjects, teacher assignments, academic years
-- Attendance: bulk marking, corrections history, summaries and low-attendance flags, staff attendance, printing
-- Timetable grid with teacher, room and assignment conflict checks; class and teacher views
-- Exams: setup, marks entry (draft/submit, validation, correction log), publishing, results and ranks, printable report cards with attendance and remarks
-- Fees: structures, bulk invoice generation, ad-hoc invoices, partial payments, receipts, discounts, late fee, void, refund. Razorpay and Cashfree with server-side verification and webhooks (inactive until keys are added)
-- Homework with attachments, submissions and grading; library with issue/return and fines; transport (vehicles, routes, stops, capacity, history)
-- Calendar (events, exams, deadlines), leave workflow that auto-excuses attendance, announcements plus in-app notifications, reports (15 types, CSV and print), audit logs, settings, JSON backup
+## Implemented
+- 2026-10-24: full MVP across all modules (see the README). Tested in iterations 1 and 2.
+- 2026-10-24: self sign-up at /signup. New accounts stay pending until an admin approves them and links them to a profile; admins can also reject requests. Account requests notify admins, and approval emails the user.
+- 2026-10-24: fee reminders. A cron runs daily at 09:00 IST (`/api/cron/fee-reminders`, Bearer WEBHOOK_CRON_SECRET), and admins can also run it with "Send now". It sends one "due soon" reminder (N days before, configurable) and one "overdue" reminder per invoice, by email and in-app. Failed emails are retried on the next run, and students who are not active are skipped. Tested in iteration 3.
+- Razorpay/Cashfree code is ready. It is waiting for keys.
 
 ## Backlog
-- P0: Add Razorpay/Cashfree keys and register the webhooks
-- P1: shadcn date pickers, SMS/WhatsApp provider, weighted multi-exam final results, attendance by term
-- P2: multi-school tenancy, PDF generation on the server, parent self-service fee reminders
+- P0: add Razorpay/Cashfree keys and register the webhooks
+- P1: repeat reminders for overdue invoices (e.g. weekly), shadcn date pickers, SMS/WhatsApp
+- P2: multi-school support, PDFs generated on the server

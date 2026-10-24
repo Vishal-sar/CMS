@@ -22,7 +22,7 @@ RATE = {"/api/auth/login": (60, 60), "/api/auth/register": (5, 600), "/api/auth/
 @app.middleware("http")
 async def security(request: Request, call_next):
     path = request.url.path
-    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[0].strip()
+    ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "").split(",")[-1].strip()
     if path in RATE:
         lim, win = RATE[path]; key = f"{ip}:{path}"; t = time.time()
         _hits[key] = [x for x in _hits[key] if x > t - win]

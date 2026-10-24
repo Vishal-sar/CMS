@@ -455,6 +455,7 @@ async def settings_put(body: dict, user=Depends(require("admin"))):
         if k in data and not (0 <= data[k] <= 100): raise HTTPException(422, f"{k} must be between 0 and 100")
     for k in ("late_fee_amount", "library_fine_per_day", "library_loan_days", "retention_years"):
         if k in data and data[k] < 0: raise HTTPException(422, f"{k} cannot be negative")
+    if "fee_reminder_days_before" in data and not (0 <= data["fee_reminder_days_before"] <= 30): raise HTTPException(422, "Reminder days must be between 0 and 30")
     if "session_minutes" in data and not (5 <= int(data["session_minutes"]) <= 720): raise HTTPException(422, "Session timeout must be 5–720 minutes")
     if "grading" in data:
         for g in data["grading"]:
