@@ -85,7 +85,8 @@ export function Settings() {
           <F label="Mark approved leave days as Excused">{sw("auto_excuse_on_leave")}</F></div></Section></TabsContent>
         <TabsContent value="fees"><Section><div className="grid sm:grid-cols-2 gap-4">
           <F label="Late fee amount (₹, applied manually to overdue invoices)">{inp("late_fee_amount", "number")}</F><F label="Payment methods">{list("payment_methods")}</F>
-          <F label="Library fine per day (₹)">{inp("library_fine_per_day", "number")}</F><F label="Library loan period (days)">{inp("library_loan_days", "number")}</F></div></Section></TabsContent>
+          <F label="Library fine per day (₹)">{inp("library_fine_per_day", "number")}</F><F label="Library loan period (days)">{inp("library_loan_days", "number")}</F>
+          <F label="Automatic fee reminder emails (daily 9 AM)">{sw("fee_reminders_enabled")}</F><F label="Remind parents this many days before due date">{inp("fee_reminder_days_before", "number")}</F></div></Section></TabsContent>
         <TabsContent value="security"><Section><div className="grid sm:grid-cols-2 gap-4">
           <F label="Session timeout (minutes of inactivity before re-auth)">{inp("session_minutes", "number")}</F><F label="Data retention (years)">{inp("retention_years", "number")}</F></div>
           <p className="text-xs text-muted-foreground mt-4">Password policy: minimum 8 characters with letters and numbers. 5 failed logins lock the account for 15 minutes. Roles: Admin, Teacher, Student, Parent — permissions are enforced on the server.</p></Section></TabsContent>

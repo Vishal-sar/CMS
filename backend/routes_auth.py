@@ -38,6 +38,14 @@ class UserIn(BaseModel):
     profile_id: Optional[str] = None
     active: bool = True
 
+class RegisterIn(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    role: str = Field(pattern="^(parent|teacher|student)$")
+    phone: str = Field(min_length=6, max_length=20)
+    note: str = Field("", max_length=300)
+
 class AdminResetIn(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
@@ -67,6 +75,8 @@ async def login(body: LoginIn, request: Request, response: Response):
         cnt = (att or {}).get("count", 0) + 1
         await db.login_attempts.update_one({"identifier": ident}, {"$set": {"count": cnt, "locked_until": (now() + timedelta(minutes=15)).isoformat() if cnt >= 5 else None}}, upsert=True)
         raise HTTPException(401, "Invalid email or password")
+    if u.get("pending"):
+        raise HTTPException(403, "Your account is awaiting approval by the school. You'll get an email once it's approved.")
     if not u.get("active", True):
         raise HTTPException(403, "Your account is deactivated. Contact the school administrator.")
     await db.login_attempts.delete_one({"identifier": ident})
@@ -146,10 +156,24 @@ async def update_profile(body: ProfileIn, user=Depends(get_current_user)):
     await audit(user, "update_profile", "users", user["id"], contact)
     return await user_out(await db.users.find_one({"id": user["id"]}, {"_id": 0}))
 
+@router.post("/auth/register")
+async def register(body: RegisterIn):
+    strong(body.password)
+    email = body.email.strip().lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(409, "An account with this email already exists. Try signing in or resetting your password.")
+    doc = {"id": new_id(), "email": email, "name": body.name.strip(), "role": body.role, "password_hash": hash_password(body.password), "profile_id": None,
+           "active": False, "pending": True, "pv": 0, "phone": body.phone, "signup_note": body.note, "created_at": now_iso()}
+    await db.users.insert_one(dict(doc))
+    admins = [a["id"] for a in await db.users.find({"role": "admin", "active": True}, {"_id": 0, "id": 1}).to_list(50)]
+    await notify(admins, f"New account request: {doc['name']} ({body.role})", body.note[:100] or email, "/users")
+    await audit(None, "signup_request", "users", doc["id"], {"role": body.role})
+    return {"ok": True, "message": "Account request received. The school will review and approve it."}
+
 # ---- user management (admin) ----
 @router.get("/users")
-async def list_users(q: str = "", role: str = "", page: int = 1, page_size: int = 20, user=Depends(require("admin"))):
-    query = {}
+async def list_users(q: str = "", role: str = "", pending: bool = False, page: int = 1, page_size: int = 20, user=Depends(require("admin"))):
+    query = {"pending": True} if pending else {}
     if role: query["role"] = role
     if q:
         import re
@@ -179,9 +203,25 @@ async def create_user(body: UserIn, user=Depends(require("admin"))):
 async def update_user(uid: str, body: UserIn, user=Depends(require("admin"))):
     if uid == user["id"] and (body.role != "admin" or not body.active): raise HTTPException(400, "You cannot demote or deactivate yourself")
     if await db.users.find_one({"email": body.email.lower(), "id": {"$ne": uid}}): raise HTTPException(409, "Email already in use")
-    await db.users.update_one({"id": uid}, {"$set": {"email": body.email.lower(), "name": body.name, "role": body.role, "profile_id": body.profile_id, "active": body.active}})
-    await audit(user, "update", "users", uid, {"role": body.role, "active": body.active})
+    old = await db.users.find_one({"id": uid}, {"_id": 0})
+    if not old: raise HTTPException(404, "User not found")
+    if body.active and body.role != "admin" and not body.profile_id: raise HTTPException(422, "Link this account to a teacher, student or parent profile before activating")
+    if body.profile_id and await db.users.find_one({"profile_id": body.profile_id, "role": body.role, "id": {"$ne": uid}}): raise HTTPException(409, "That profile already has a login account")
+    approving = old.get("pending") and body.active
+    await db.users.update_one({"id": uid}, {"$set": {"email": body.email.lower(), "name": body.name, "role": body.role, "profile_id": body.profile_id, "active": body.active,
+                                                   **({"pending": False, "approved_by": user["name"], "approved_at": now_iso()} if approving else {})}})
+    await audit(user, "approve_signup" if approving else "update", "users", uid, {"role": body.role, "active": body.active})
+    if approving:
+        s = await get_settings()
+        await send_email(body.email.lower(), f"Your {s['school_name']} account is approved", email_template("Account approved", [f"Hi {body.name},", "Your portal account has been approved. You can now sign in with the email and password you registered with."]))
     return clean(await db.users.find_one({"id": uid}, {"_id": 0}))
+
+@router.delete("/users/{uid}/request")
+async def reject_signup(uid: str, user=Depends(require("admin"))):
+    r = await db.users.delete_one({"id": uid, "pending": True})
+    if not r.deleted_count: raise HTTPException(404, "Pending request not found")
+    await audit(user, "reject_signup", "users", uid)
+    return {"ok": True}
 
 @router.post("/users/{uid}/toggle-active")
 async def toggle_user(uid: str, user=Depends(require("admin"))):

@@ -32,7 +32,7 @@ DEFAULT_SETTINGS = {
         {"no": 7, "start": "12:30", "end": "13:15", "type": "class"}, {"no": 8, "start": "13:15", "end": "14:00", "type": "class"}],
     "receipt_footer": "This is a computer generated receipt.", "student_leave_approver": "admin",
     "auto_excuse_on_leave": True, "allow_student_profile_edit": True, "email_notifications": True,
-    "retention_years": 7, "payment_methods": ["Cash", "Bank Transfer", "Card", "UPI", "Cheque"],
+    "retention_years": 7, "fee_reminders_enabled": True, "fee_reminder_days_before": 3, "payment_methods": ["Cash", "Bank Transfer", "Card", "UPI", "Cheque"],
 }
 
 def now(): return datetime.now(timezone.utc)

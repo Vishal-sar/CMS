@@ -53,7 +53,8 @@ export function Parents() {
 
 export function Users() {
   const t = useTableState();
-  const { data, loading, error, reload } = useFetch("/users", { q: t.q, page: t.page, role: t.filters.role });
+  const { data, loading, error, reload } = useFetch("/users", { q: t.q, page: t.page, role: t.filters.role, pending: t.filters.pending === "1" || undefined });
+  const pend = useFetch("/users", { pending: true, page_size: 1 }, [data]);
   const [edit, setEdit] = useState(null); const [reset, setReset] = useState(null);
   const teachers = useFetch("/teachers", { page_size: 500 }); const studs = useFetch("/students", { page_size: 500 }); const parents = useFetch("/parents", { page_size: 500 });
   const prof = (role) => ({ teacher: teachers, student: studs, parent: parents }[role]?.data?.items || []).map((p) => ({ value: p.id, label: p.name }));
@@ -63,8 +64,11 @@ export function Users() {
     { name: "password", label: "Password", type: "password", hidden: (f) => !!f.id, required: true, help: "Min 8 characters with letters and numbers" }, { name: "active", label: "Active", type: "switch" }];
   const toggle = async (u) => { try { await api.post(`/users/${u.id}/toggle-active`); toast.success("Updated"); reload(); } catch (e) { toast.error(errMsg(e)); } };
   const cols = [{ key: "name", label: "User", render: (r) => <span><b>{r.name}</b><span className="block text-xs text-muted-foreground">{r.email}</span></span> }, { key: "role", label: "Role", render: (r) => <Badge value={r.role} /> },
-    { key: "active", label: "Status", render: (r) => <Badge value={r.active ? "active" : "inactive"} /> }, { key: "last_login", label: "Last login", render: (r) => fdatetime(r.last_login) },
-    { key: "a", label: "", className: "text-right", render: (r) => <div className="flex justify-end gap-1">
+    { key: "active", label: "Status", render: (r) => r.pending ? <span><Badge value="pending" label="Awaiting approval" />{r.signup_note && <span className="block text-[11px] text-muted-foreground mt-1 max-w-[220px] truncate" title={r.signup_note}>{r.signup_note}</span>}{r.phone && <span className="block text-[11px] text-muted-foreground">{r.phone}</span>}</span> : <Badge value={r.active ? "active" : "inactive"} /> }, { key: "last_login", label: "Last login", render: (r) => fdatetime(r.last_login) },
+    { key: "a", label: "", className: "text-right", render: (r) => r.pending ? <div className="flex justify-end gap-1">
+      <Button size="sm" onClick={() => setEdit({ ...r, active: true })} data-testid={`user-approve-${r.id}`}>Approve</Button>
+      <Confirm title="Reject this account request?" description="The request will be deleted." onConfirm={() => api.delete(`/users/${r.id}/request`).then(() => { toast.success("Request rejected"); reload(); }).catch((e) => toast.error(errMsg(e)))}
+        trigger={<Button size="sm" variant="outline" className="text-rose-600" data-testid={`user-reject-${r.id}`}>Reject</Button>} /></div> : <div className="flex justify-end gap-1">
       <Button variant="ghost" size="sm" onClick={() => setEdit(r)} data-testid={`user-edit-${r.id}`}>Edit</Button>
       <Button variant="ghost" size="icon" title="Reset password" onClick={() => setReset(r)} data-testid={`user-reset-${r.id}`}><KeyRound className="h-4 w-4" /></Button>
       <Confirm title={r.active ? "Deactivate this account?" : "Activate this account?"} description="Active sessions will be signed out." onConfirm={() => toggle(r)} destructive={r.active}
@@ -73,10 +77,11 @@ export function Users() {
     <div className="page" data-testid="users-page">
       <PageHeader title="User Management" subtitle="Portal accounts, roles and access" actions={<Button onClick={() => setEdit({ active: true })} data-testid="add-user-btn"><Plus className="h-4 w-4 mr-2" />Add user</Button>} />
       <Section><div className="flex flex-col sm:flex-row gap-3 mb-4"><SearchInput value={t.q} onChange={t.setSearch} testid="users-search" />
-        <div className="w-full sm:w-48"><SelectField value={t.filters.role || ""} onChange={(v) => t.setFilter("role", v)} allowEmpty="All roles" options={["admin", "teacher", "student", "parent"].map((r) => ({ value: r, label: r }))} testid="users-role-filter" /></div></div>
+        <div className="w-full sm:w-48"><SelectField value={t.filters.role || ""} onChange={(v) => t.setFilter("role", v)} allowEmpty="All roles" options={["admin", "teacher", "student", "parent"].map((r) => ({ value: r, label: r }))} testid="users-role-filter" /></div>
+        <Button variant={t.filters.pending === "1" ? "default" : "outline"} onClick={() => t.setFilter("pending", t.filters.pending === "1" ? "" : "1")} data-testid="users-pending-filter">Pending requests{pend.data?.total ? ` (${pend.data.total})` : ""}</Button></div>
         <DataTable columns={cols} rows={data?.items} loading={loading} error={error} onRetry={reload} page={t.page} total={data?.total} onPage={t.setPage} testid="users-table" /></Section>
-      <FormDialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.id ? "Edit user" : "Add user"} fields={fields} initial={edit} testid="user-form"
-        onSubmit={async (f) => { const b = { ...f, profile_id: f.role === "admin" ? null : f.profile_id }; if (f.id) await api.put(`/users/${f.id}`, b); else await api.post("/users", b); toast.success("Saved"); reload(); }} />
+      <FormDialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.pending ? "Approve account request" : edit?.id ? "Edit user" : "Add user"} description={edit?.pending ? "Link this account to the matching teacher, student or parent profile, then save to approve." : undefined} fields={fields} initial={edit} testid="user-form"
+        onSubmit={async (f) => { const b = { ...f, profile_id: f.role === "admin" ? null : f.profile_id }; if (f.id) await api.put(`/users/${f.id}`, b); else await api.post("/users", b); toast.success(f.pending ? "Account approved; the user was emailed" : "Saved"); reload(); }} />
       <FormDialog open={!!reset} onOpenChange={(o) => !o && setReset(null)} title={`Reset password for ${reset?.name}`} fields={[{ name: "password", label: "New password", type: "password", required: true }]} testid="reset-form"
         onSubmit={async (f) => { await api.post(`/users/${reset.id}/reset-password`, f); toast.success("Password reset; user's sessions were signed out"); }} />
     </div>

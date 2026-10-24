@@ -59,11 +59,51 @@ export function Login() {
         {err && <p className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 rounded-lg px-3 py-2" data-testid="login-error">{err}</p>}
         <Button type="submit" className="w-full h-11" disabled={busy} data-testid="login-submit-button">{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Sign in</Button>
       </form>
+      <p className="mt-6 text-sm text-center text-muted-foreground">New parent, teacher or student? <Link to="/signup" className="text-sky-600 font-semibold hover:underline" data-testid="signup-link">Create an account</Link></p>
       <div className="mt-8 rounded-xl border border-dashed p-4 text-xs text-muted-foreground" data-testid="demo-accounts">
         <p className="font-semibold text-foreground mb-1">Demo portal accounts (demo data)</p>
         <p>Teacher: teacher@eduprime.demo · Student: student@eduprime.demo · Parent: parent@eduprime.demo</p>
         <p className="mt-1">Passwords are shared by your administrator.</p>
       </div>
+    </Shell>
+  );
+}
+
+export function Signup() {
+  const [f, setF] = useState({ name: "", email: "", phone: "", role: "parent", password: "", confirm: "", note: "" });
+  const [show, setShow] = useState(false); const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [done, setDone] = useState("");
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const submit = async (e) => {
+    e.preventDefault(); setErr("");
+    if (f.name.trim().length < 2) return setErr("Enter your full name");
+    if (!/^\S+@\S+\.\S+$/.test(f.email)) return setErr("Enter a valid email");
+    if (!/^[+\d\s-]{6,20}$/.test(f.phone)) return setErr("Enter a valid phone number");
+    if (f.password.length < 8 || !/\d/.test(f.password) || !/[a-z]/i.test(f.password)) return setErr("Password needs at least 8 characters with letters and numbers");
+    if (f.password !== f.confirm) return setErr("Passwords do not match");
+    setBusy(true);
+    try { const { confirm, ...body } = f; const { data } = await api.post("/auth/register", body); setDone(data.message); }
+    catch (er) { setErr(errMsg(er)); } finally { setBusy(false); }
+  };
+  const roles = [["parent", "Parent"], ["student", "Student"], ["teacher", "Teacher / Staff"]];
+  return (
+    <Shell title="Create an account" subtitle="The school office reviews every request and links it to your records before you can sign in.">
+      {done ? <div className="space-y-4"><p className="rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 p-4 text-sm" data-testid="signup-success">{done} You'll receive an email once your account is approved.</p>
+        <Link to="/login"><Button variant="outline" className="w-full" data-testid="signup-back-login">Back to sign in</Button></Link></div> :
+      <form onSubmit={submit} className="space-y-4" noValidate data-testid="signup-form">
+        <div className="space-y-1.5"><Label>I am a</Label><div className="grid grid-cols-3 gap-2">{roles.map(([v, l]) => <button type="button" key={v} onClick={() => setF({ ...f, role: v })} data-testid={`signup-role-${v}`}
+          className={`rounded-lg border px-3 py-2 text-sm transition-colors ${f.role === v ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}>{l}</button>)}</div></div>
+        <div className="space-y-1.5"><Label>Full name</Label><Input value={f.name} onChange={set("name")} data-testid="signup-name-input" /></div>
+        <div className="grid sm:grid-cols-2 gap-4"><div className="space-y-1.5"><Label>Email</Label><Input type="email" autoComplete="username" value={f.email} onChange={set("email")} data-testid="signup-email-input" /></div>
+          <div className="space-y-1.5"><Label>Phone</Label><Input value={f.phone} onChange={set("phone")} data-testid="signup-phone-input" /></div></div>
+        <div className="space-y-1.5"><Label>{f.role === "parent" ? "Child's name & admission number" : f.role === "student" ? "Your class & admission number" : "Employee ID / department"} (helps the school verify you)</Label>
+          <Input value={f.note} onChange={set("note")} data-testid="signup-note-input" /></div>
+        <div className="grid sm:grid-cols-2 gap-4"><div className="space-y-1.5"><Label>Password</Label><div className="relative"><Input type={show ? "text" : "password"} autoComplete="new-password" value={f.password} onChange={set("password")} className="pr-10" data-testid="signup-password-input" />
+          <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label="Toggle password" data-testid="signup-toggle-password">{show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
+          <div className="space-y-1.5"><Label>Confirm password</Label><Input type={show ? "text" : "password"} autoComplete="new-password" value={f.confirm} onChange={set("confirm")} data-testid="signup-confirm-input" /></div></div>
+        {err && <p className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-500/10 rounded-lg px-3 py-2" data-testid="signup-error">{err}</p>}
+        <Button type="submit" className="w-full h-11" disabled={busy} data-testid="signup-submit-button">{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Request account</Button>
+        <p className="text-sm text-center text-muted-foreground">Already have an account? <Link to="/login" className="text-sky-600 hover:underline" data-testid="signup-login-link">Sign in</Link></p>
+      </form>}
     </Shell>
   );
 }

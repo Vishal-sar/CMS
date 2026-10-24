@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, Protected } from "@/lib/auth";
 import AppLayout from "@/components/app/Layout";
 import Landing from "@/pages/Landing";
-import { Login, ForgotPassword, ResetPassword } from "@/pages/Auth";
+import { Login, Signup, ForgotPassword, ResetPassword } from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Students, { StudentProfile } from "@/pages/Students";
 import { Teachers, Parents, Users, Classes } from "@/pages/People";
@@ -27,6 +27,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/payment-result" element={<Navigate to={`/app/payment-result${window.location.search}`} replace />} />

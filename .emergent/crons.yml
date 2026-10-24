@@ -1,0 +1,9 @@
+crons:
+  - name: fee-reminders
+    description: "Emails parents about fees due soon and newly overdue invoices, daily at 9am IST"
+    cron: "0 9 * * *"
+    timezone: "Asia/Kolkata"
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    endpoint: "{{BASE_URL}}/api/cron/fee-reminders"
+    method: POST
+    enabled: true

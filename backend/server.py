@@ -10,14 +10,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from core import db, client, new_id, now_iso, hash_password, verify_password, init_storage, logger
-import routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash
+import routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash, routes_reminders
 from seed import seed_demo, seed_demo_logins
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 app = FastAPI(title="EduPrime School Management System")
 
 _hits = defaultdict(list)
-RATE = {"/api/auth/login": (60, 60), "/api/auth/forgot-password": (5, 300), "/api/auth/reset-password": (10, 300)}
+RATE = {"/api/auth/login": (60, 60), "/api/auth/register": (5, 600), "/api/auth/forgot-password": (5, 300), "/api/auth/reset-password": (10, 300)}
 
 @app.middleware("http")
 async def security(request: Request, call_next):
@@ -28,7 +28,7 @@ async def security(request: Request, call_next):
         _hits[key] = [x for x in _hits[key] if x > t - win]
         if len(_hits[key]) >= lim: return JSONResponse({"detail": "Too many requests. Please wait and try again."}, status_code=429)
         _hits[key].append(t)
-    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.cookies.get("access_token") and not path.startswith("/api/webhooks"):
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.cookies.get("access_token") and not path.startswith(("/api/webhooks", "/api/cron")):
         origin = request.headers.get("origin")
         host = request.headers.get("x-forwarded-host") or request.headers.get("host")
         if origin and urlparse(origin).netloc != host: return JSONResponse({"detail": "Cross-site request blocked"}, status_code=403)
@@ -43,7 +43,7 @@ async def dup_handler(request, exc): return JSONResponse({"detail": "A record wi
 async def db_handler(request, exc):
     logger.error(f"DB error: {exc}"); return JSONResponse({"detail": "Database error. Please try again."}, status_code=503)
 
-for r in (routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash): app.include_router(r.router)
+for r in (routes_auth, routes_people, routes_academic, routes_exams, routes_fees, routes_misc, routes_dash, routes_reminders): app.include_router(r.router)
 
 @app.get("/api/health")
 async def health(): return {"ok": True}

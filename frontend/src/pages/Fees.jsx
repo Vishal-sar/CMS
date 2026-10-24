@@ -159,10 +159,12 @@ function Structures() {
 }
 
 export default function Fees() {
-  const { user } = useAuth(); const { data: d } = useFetch(user.role === "admin" ? "/dashboard" : null);
+  const { user } = useAuth(); const { data: d } = useFetch(user.role === "admin" ? "/dashboard" : null); const [sending, setSending] = useState(false);
+  const remind = async () => { setSending(true); try { const { data: r } = await api.post("/fees/send-reminders"); r.skipped ? toast.info("Fee reminders are turned off in Settings") : toast.success(`Reminders: ${r.due_soon} due soon, ${r.overdue} overdue · ${r.emails_sent} emails sent${r.emails_failed ? `, ${r.emails_failed} failed` : ""}`); } catch (e) { toast.error(errMsg(e)); } finally { setSending(false); } };
   return (
     <div className="page" data-testid="fees-page">
-      <PageHeader title="Fees & Payments" subtitle={user.role === "admin" ? "Invoices, collections, receipts and fee structures" : "Invoices, payment history and receipts"} />
+      <PageHeader title="Fees & Payments" subtitle={user.role === "admin" ? "Invoices, collections, receipts and fee structures. Reminder emails go out automatically every day at 9 AM." : "Invoices, payment history and receipts"}
+        actions={user.role === "admin" && <Button variant="outline" onClick={remind} disabled={sending} data-testid="send-reminders-btn">{sending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Send fee reminders now</Button>} />
       {d && <div className="grid grid-cols-1 sm:grid-cols-3 gap-4"><StatCard label="Collected" value={inr(d.stats.fees_collected)} tone="green" /><StatCard label="Outstanding" value={inr(d.stats.fees_pending)} tone="gold" /><StatCard label="Overdue" value={inr(d.stats.fees_overdue)} tone="red" /></div>}
       {user.role === "admin" ? <Tabs defaultValue="invoices"><TabsList><TabsTrigger value="invoices">Invoices</TabsTrigger><TabsTrigger value="payments" data-testid="tab-payments">Payments</TabsTrigger><TabsTrigger value="structures" data-testid="tab-structures">Fee structures</TabsTrigger></TabsList>
         <TabsContent value="invoices"><Invoices /></TabsContent><TabsContent value="payments"><Payments /></TabsContent><TabsContent value="structures"><Structures /></TabsContent></Tabs> : <Invoices />}
