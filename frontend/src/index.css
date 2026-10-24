@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 33% 97%; --foreground: 222 47% 11%;
+    --card: 0 0% 100%; --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%; --popover-foreground: 222 47% 11%;
+    --primary: 222 47% 15%; --primary-foreground: 210 40% 98%;
+    --secondary: 204 94% 94%; --secondary-foreground: 222 47% 15%;
+    --muted: 210 40% 94%; --muted-foreground: 215 16% 42%;
+    --accent: 43 96% 52%; --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 51%; --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 89%; --input: 214 32% 86%; --ring: 199 89% 48%;
+    --sky: 199 89% 48%; --gold: 38 92% 50%;
+    --chart-1: 222 47% 20%; --chart-2: 199 89% 48%; --chart-3: 43 96% 52%; --chart-4: 152 60% 42%; --chart-5: 0 72% 58%;
+    --sidebar: 222 47% 11%;
+    --radius: 0.75rem;
+  }
+  .dark {
+    --background: 222 47% 6%; --foreground: 210 40% 98%;
+    --card: 222 44% 9%; --card-foreground: 210 40% 98%;
+    --popover: 222 44% 10%; --popover-foreground: 210 40% 98%;
+    --primary: 199 89% 52%; --primary-foreground: 222 47% 7%;
+    --secondary: 217 33% 16%; --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 15%; --muted-foreground: 215 20% 68%;
+    --accent: 43 96% 56%; --accent-foreground: 222 47% 7%;
+    --destructive: 0 62% 45%; --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 18%; --input: 217 33% 22%; --ring: 199 89% 48%;
+    --chart-1: 199 89% 55%; --chart-2: 43 96% 56%; --chart-3: 152 60% 48%; --chart-4: 262 70% 65%; --chart-5: 0 72% 62%;
+    --sidebar: 222 47% 5%;
+  }
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground antialiased; font-family: 'Plus Jakarta Sans', sans-serif; }
+  h1, h2, h3, h4, .font-display { font-family: 'Outfit', sans-serif; letter-spacing: -0.01em; }
+  ::selection { background: hsl(var(--accent) / 0.35); }
+}
+
+@layer components {
+  .card-surface { @apply rounded-xl border bg-card shadow-sm transition-shadow duration-200 hover:shadow-md; }
+  .page { @apply p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto; }
+  .fade-up { animation: fadeUp .45s ease both; }
+  .gold-line { background: linear-gradient(90deg, hsl(var(--accent)), transparent); height: 2px; }
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; box-shadow: none !important; border: none !important; background: white !important; color: black !important; }
+  .no-print { display: none !important; }
+}

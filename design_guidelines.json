@@ -1,0 +1,138 @@
+{
+  "project_info": {
+    "name": "EduPrime - Premium School Management System (SMS)",
+    "app_type": "saas_app / dashboard",
+    "currency": "INR (₹)",
+    "target_roles": ["Admin", "Teacher", "Student", "Parent"]
+  },
+  "typography": {
+    "font_family_heading": "'Plus Jakarta Sans', sans-serif",
+    "font_family_body": "'Inter', sans-serif",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg sm:text-xl font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "caption": "text-xs font-medium text-muted-foreground uppercase tracking-wider"
+    }
+  },
+  "color_tokens_hsl": {
+    "light": {
+      "--background": "216 33% 97%",
+      "--foreground": "222 47% 11%",
+      "--card": "0 0% 100%",
+      "--card-foreground": "222 47% 11%",
+      "--popover": "0 0% 100%",
+      "--popover-foreground": "222 47% 11%",
+      "--primary": "222 47% 15%",
+      "--primary-foreground": "210 40% 98%",
+      "--secondary": "199 89% 48%",
+      "--secondary-foreground": "222 47% 11%",
+      "--muted": "210 40% 93.9%",
+      "--muted-foreground": "215 16% 47%",
+      "--accent": "43 96% 52%",
+      "--accent-foreground": "222 47% 11%",
+      "--destructive": "0 84% 60%",
+      "--destructive-foreground": "210 40% 98%",
+      "--border": "214 32% 88%",
+      "--input": "214 32% 88%",
+      "--ring": "222 47% 15%",
+      "--chart-1": "222 47% 15%",
+      "--chart-2": "199 89% 48%",
+      "--chart-3": "43 96% 52%",
+      "--chart-4": "142 71% 45%",
+      "--chart-5": "262 83% 58%"
+    },
+    "dark": {
+      "--background": "222 47% 7%",
+      "--foreground": "210 40% 98%",
+      "--card": "222 47% 10%",
+      "--card-foreground": "210 40% 98%",
+      "--popover": "222 47% 10%",
+      "--popover-foreground": "210 40% 98%",
+      "--primary": "199 89% 48%",
+      "--primary-foreground": "222 47% 7%",
+      "--secondary": "217 33% 17%",
+      "--secondary-foreground": "210 40% 98%",
+      "--muted": "217 33% 17%",
+      "--muted-foreground": "215 20% 65%",
+      "--accent": "43 96% 52%",
+      "--accent-foreground": "222 47% 7%",
+      "--destructive": "0 62% 30%",
+      "--destructive-foreground": "210 40% 98%",
+      "--border": "217 33% 18%",
+      "--input": "217 33% 18%",
+      "--ring": "199 89% 48%",
+      "--chart-1": "199 89% 48%",
+      "--chart-2": "43 96% 52%",
+      "--chart-3": "142 71% 45%",
+      "--chart-4": "262 83% 58%",
+      "--chart-5": "340 75% 55%"
+    }
+  },
+  "brand_palette": {
+    "navy_dark": "#0A192F",
+    "navy_primary": "#1E3A8A",
+    "sky_blue": "#0EA5E9",
+    "sky_light": "#E0F2FE",
+    "gold_accent": "#D97706",
+    "gold_amber": "#F59E0B",
+    "gold_light": "#FEF3C7"
+  },
+  "layout_architecture": {
+    "sidebar": {
+      "expanded_width": "260px",
+      "collapsed_width": "72px",
+      "style": "Collapsible with smooth transition, grouped section items, role badge at top, active pill indicator in Navy/Sky blue."
+    },
+    "header": {
+      "height": "h-16",
+      "components": [
+        "Sidebar Toggle",
+        "Role Switcher (Admin / Teacher / Student / Parent)",
+        "Global Search (Modal or Input)",
+        "Notifications Dropdown Popover",
+        "Light/Dark Mode Toggle Switch",
+        "User Profile Dropdown with Avatar & Role"
+      ]
+    },
+    "page_container": "p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto"
+  },
+  "key_modules": {
+    "landing_page": "Hero section with campus image, features overview, portal access CTA buttons, testimonials, fee structure sample, school contact.",
+    "dashboard": "Role-tailored stats cards, attendance overview chart, upcoming exams, recent announcements, quick actions.",
+    "students_teachers_parents": "Filterable/searchable datatables with pagination, status badges, CRUD modal forms, student detail drawer/view.",
+    "attendance_grid": "Daily/Weekly grid with P (Present), A (Absent), L (Late), HD (Half Day) quick toggle buttons and batch submit.",
+    "timetable_grid": "Weekly matrix (Monday-Saturday vs Time Slots) showing Class, Subject, Room, Teacher card blocks.",
+    "exams_marks_reportcards": "Marks entry grid per class/subject, printable PDF-style Report Card template with grade calculation & school header.",
+    "fees_invoices_receipts": "Fee status cards, online payment trigger, printable fee receipt modal with INR breakdown and official seal design.",
+    "homework_submissions": "Homework posting, file attachment indicator, student submission status table with grading input.",
+    "library_transport_leave": "Book availability catalogue, bus route tracker details, leave application & approval workflow.",
+    "audit_logs_settings": "System activity logs, role permission matrices, general school info configuration."
+  },
+  "image_urls": {
+    "hero_classroom": "https://images.unsplash.com/photo-1509062522246-3755977927d7?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "teacher_presentation": "https://images.unsplash.com/photo-1577896851231-70ef18881754?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "library_students": "https://images.pexels.com/photos/5940832/pexels-photo-5940832.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "students_group": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?crop=entropy&cs=srgb&fm=jpg&q=85"
+  },
+  "component_styling_rules": {
+    "buttons": "Pill or rounded-lg with focus rings. Primary buttons in Deep Navy or Sky Blue with subtle hover lift and Gold accent highlights.",
+    "cards": "Bordered rounded-xl shadow-sm bg-card transition-all hover:shadow-md hover:border-accent/40",
+    "tables": "Clean responsive tables with sticky headers, alternate row shading, search/filter bars, and pagination.",
+    "badges": "Rounded-full px-2.5 py-0.5 text-xs font-semibold for status (Present: green, Absent: red, Pending: amber, Paid: emerald).",
+    "printables": "Clean white printable wrapper with print:block print:p-0 print:shadow-none rules for Report Cards and Receipts."
+  },
+  "testing_attributes": {
+    "rule": "All interactive buttons, inputs, links, tabs, tables, and modals MUST include explicit `data-testid` attributes (kebab-case).",
+    "examples": [
+      "data-testid='role-switcher-admin'",
+      "data-testid='sidebar-toggle-button'",
+      "data-testid='mark-attendance-btn'",
+      "data-testid='print-report-card-btn'",
+      "data-testid='theme-toggle-button'"
+    ]
+  }
+}
