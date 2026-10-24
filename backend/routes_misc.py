@@ -107,7 +107,7 @@ class SubmitIn(BaseModel):
 
 @router.post("/homework/{hid}/submit")
 async def submit(hid: str, body: SubmitIn, user=Depends(require("student"))):
-    h = await db.homework.find_one({"id": hid, "status": "published"}, {"_id": 0})
+    h = await db.homework.find_one({"id": hid, "status": "published", "archived": {"$ne": True}}, {"_id": 0})
     st = await db.students.find_one({"id": user["profile_id"]}, {"_id": 0})
     if not h or not st or (st["class_id"], st["section"]) != (h["class_id"], h["section"]): raise HTTPException(404, "Homework not found")
     if not body.text.strip() and not body.files: raise HTTPException(422, "Add text or attach a file")
@@ -451,6 +451,10 @@ async def settings_put(body: dict, user=Depends(require("admin"))):
             except (TypeError, ValueError): raise HTTPException(422, f"{k} must be a number")
         if isinstance(d, list) and not isinstance(v, list): raise HTTPException(422, f"{k} must be a list")
         if isinstance(d, str) and d and not isinstance(v, str): raise HTTPException(422, f"{k} must be text")
+    for k in ("pass_percent", "low_attendance_threshold"):
+        if k in data and not (0 <= data[k] <= 100): raise HTTPException(422, f"{k} must be between 0 and 100")
+    for k in ("late_fee_amount", "library_fine_per_day", "library_loan_days", "retention_years"):
+        if k in data and data[k] < 0: raise HTTPException(422, f"{k} cannot be negative")
     if "session_minutes" in data and not (5 <= int(data["session_minutes"]) <= 720): raise HTTPException(422, "Session timeout must be 5–720 minutes")
     if "grading" in data:
         for g in data["grading"]:

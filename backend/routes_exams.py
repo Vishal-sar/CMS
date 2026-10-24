@@ -133,7 +133,7 @@ async def save_marks(eid: str, body: MarksIn, user=Depends(require("admin", "tea
     if e["status"] == "published" and user["role"] != "admin": raise HTTPException(403, "Results are published; only administrators can correct marks")
     es = next((s for s in e["subjects"] if s["subject_id"] == body.subject_id), None)
     if not es: raise HTTPException(422, "Subject is not part of this exam")
-    valid = {x["id"] for x in await db.students.find({"class_id": e["class_id"], "section": body.section}, {"_id": 0, "id": 1}).to_list(500)}
+    valid = {x["id"] for x in await db.students.find({"class_id": e["class_id"], "section": body.section, "status": "active"}, {"_id": 0, "id": 1}).to_list(500)}
     for en in body.entries:
         if en.student_id not in valid: raise HTTPException(422, "Student not in this section")
         if not en.absent and en.marks is not None and not (0 <= en.marks <= es["max_marks"]):
@@ -176,7 +176,7 @@ async def exam_results(eid: str, section: str = "", user=Depends(require("admin"
     e = await db.exams.find_one({"$and": [{"id": eid}, await exam_scope(user)]}, {"_id": 0})
     if not e: raise HTTPException(404, "Exam not found")
     s = await get_settings(); sub = {x["id"]: x["name"] for x in await db.subjects.find({}, {"_id": 0}).to_list(1000)}
-    q = {"class_id": e["class_id"], "section": {"$in": [section] if section else e["sections"]}}
+    q = {"class_id": e["class_id"], "section": {"$in": [section] if section else e["sections"]}, "status": {"$ne": "archived"}, "archived": {"$ne": True}}
     studs = await db.students.find(q, {"_id": 0, "id": 1, "name": 1, "admission_no": 1, "section": 1}).to_list(1000)
     out = []
     for st in studs: out.append({**st, **(await compute_result(e, st["id"], s, sub))})

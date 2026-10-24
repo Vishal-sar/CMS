@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 2 retest of the iteration_1 fixes. New file /app/backend/tests/test_iter2_fixes.py has 20 tests; 15 pass and 5 fail. The iteration 1 suite test_school_api.py passes 35/35 after updating its timetable test to create teacher assignments first, which the new validation requires. Verified fixes: (1) teacher DELETE/restore/PUT on the admin's announcement returns 403; teacher DELETE/PUT on another teacher's homework returns 403/404; restore or archive of a nonexistent id returns 404. (2) Archiving a student sets status='archived'. Archived students are excluded from the attendance sheet and summary, marks entry, homework submissions and section capacity. Restore sets status back to active. (3) Archived homework is hidden from teacher and student lists, also in the UI. (4) Timetable rejects an unassigned teacher (422) and an invalid class or section (422). (5) Report card returns 404 for an exam on another section. (6) Clearing a mark deletes it. (7) Settings type validation works: pass_percent='abc', bool/list/str mismatches all return 422. Frontend (Playwright): teacher greeting reads 'Good morning, Kavita'; admin greeting is just 'Good morning'; report card breadcrumbs read 'Home > Report Card'; after the teacher logs out from /app/homework, the student's next login lands on /app; the mobile sheet close X does not overlap the brand. Smoke tests: all 4 role logins, admin dashboard, teacher attendance save (Grade 6-A), admin partial payment with receipt dialog (invoice becomes partial, balance 300), student homework submit persisted. Auth playbook: bcrypt $2b$, CORS with explicit origin and credentials.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/exams/{eid}/results (routes_exams.py exam_results)", "issue": "Archived students still appear in exam results. The student query {class_id, section} has no status:'active' filter. Fix item (2) explicitly listed results, so this is incomplete.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/students/{id} on an archived student", "issue": "StudentIn.status defaults to 'active', and crud update_item does not block or keep the archived state. Editing an archived student gives archived=true, status='active', and the student shows up again in the attendance sheet, marks and capacity counts. Fix: in student_before keep status='archived' when old.archived, or reject updates on archived records."},
+      {"endpoint": "POST /api/homework/{hid}/submit", "issue": "Students can still submit to archived homework (returns 200). The query only checks status='published'. Add archived:{$ne:true}."},
+      {"endpoint": "POST /api/students/{id}/restore", "issue": "Restore does not check section capacity. Reproduced: a capacity-1 section is filled, and restoring an archived student into it returns 200, so the section goes over capacity. Restore also always sets status 'active', which loses an earlier status such as graduated or transferred."},
+      {"endpoint": "POST /api/exams/{eid}/marks (save_marks)", "issue": "The 'valid' student set has no status:'active' filter, so marks can still be saved for archived students via the API."},
+      {"endpoint": "PUT /api/settings", "issue": "Only type checks, no range checks. pass_percent=-10 is accepted (200), and so would be 500. Add bounds for pass_percent and low_attendance_threshold (0-100) and for the fee, fine and loan-day values (>=0)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile sidebar sheet", "issues": ["The sheet close X is dark on the dark navy sidebar and almost invisible; only its focus ring shows. Give it a light text color, e.g. text-white/80."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter2_fixes.py", "/app/backend/tests/test_school_api.py", "/app/test_reports/pytest/iter2_fixes.xml", "/app/test_reports/pytest/iter2_regression.xml"],
+  "action_items": [
+    "Add status:'active' (or archived:{$ne:true}) to the students query in exam_results (routes_exams.py ~line 179) and to the valid set in save_marks (line 136)",
+    "Keep an archived student archived on PUT: in student_before, if old and old.get('archived'), force data['status']='archived', or reject edits of archived records",
+    "In submit(), reject submissions to archived homework",
+    "Check section capacity when restoring a student; optionally keep the pre-archive status",
+    "Add range validation to PUT /api/settings for numeric fields",
+    "Make the mobile sheet close button visible on the dark sidebar"
+  ],
+  "critical_code_review_comments": [
+    "crud.update_item can modify archived records for every collection. Consider blocking or ignoring updates when old.archived is true.",
+    "Report card attendance still counts all-time records, not the exam's year or term (noted in iteration 1, still open).",
+    "settings_put converts float settings with int() when the default is int (e.g. pass_percent '45.5' -> 422). That is fine, but note it."
+  ],
+  "updated_files": ["/app/backend/tests/test_school_api.py (timetable test now creates assignments first)", "/app/backend/tests/test_iter2_fixes.py (new)"],
+  "success_rate": {"backend": "50/55 tests (91%); 5 failures are real bugs listed above", "frontend": "100% of requested UI checks passed"},
+  "test_credentials": "From /app/memory/test_credentials.md; all 4 work",
+  "seed_data_creation": "TEST_-prefixed students, homework, exams, a class, an announcement and an invoice were created and then archived, voided or deleted. Demo teacher attendance for Grade 6-A today was re-saved with the same values.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run both files with -n0 (pytest.ini enables xdist and the tests share module state): pytest /app/backend/tests/test_iter2_fixes.py /app/backend/tests/test_school_api.py -n0. The expected failures in test_iter2_fixes are exam results, restore over capacity, PUT on an archived student, submit to archived homework and a negative pass_percent. All should pass once fixed. The homework UI submit is inline: fill submit-text-{id}, then click submit-hw-{id}. The attendance class picker is att-section-select, with options att-section-select-opt-*."
+}

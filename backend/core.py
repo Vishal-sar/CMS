@@ -252,15 +252,23 @@ def crud(router, path, coll, Model, read_roles=ROLES, write_roles=("admin",), se
         return old
 
     async def archive_item(item_id: str, user=Depends(require(*write_roles))):
-        await owned(item_id, user)
-        extra = {"status": "archived"} if coll == "students" else {}
+        old = await owned(item_id, user)
+        extra = {"status": "archived", "status_before_archive": old.get("status")} if coll == "students" else {}
         await col.update_one({"id": item_id}, {"$set": {"archived": True, "updated_at": now_iso(), **extra}})
         await audit(user, "archive", coll, item_id)
         return {"ok": True}
 
     async def restore_item(item_id: str, user=Depends(require(*write_roles))):
-        await owned(item_id, user)
-        extra = {"status": "active"} if coll == "students" else {}
+        old = await owned(item_id, user)
+        extra = {}
+        if coll == "students":
+            prev = old.get("status_before_archive") or "active"
+            if prev == "active":
+                c = await db.classes.find_one({"id": old["class_id"]}, {"_id": 0}) or {}
+                sec = next((s for s in c.get("sections", []) if s["name"] == old["section"]), {})
+                cnt = await db.students.count_documents({"class_id": old["class_id"], "section": old["section"], "status": "active"})
+                if sec.get("capacity") and cnt >= int(sec["capacity"]): raise HTTPException(409, "Section is at full capacity; transfer first")
+            extra = {"status": prev}
         await col.update_one({"id": item_id}, {"$set": {"archived": False, **extra}})
         await audit(user, "restore", coll, item_id)
         return {"ok": True}

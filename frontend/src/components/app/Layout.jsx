@@ -148,7 +148,7 @@ export default function AppLayout() {
         </button>
       </aside>
       <Sheet open={mobile} onOpenChange={setMobile}>
-        <SheetContent side="left" className="p-0 w-[270px] bg-[hsl(var(--sidebar))] border-0 flex flex-col"><Brand className="pr-12" /><SideNav onNavigate={() => setMobile(false)} /></SheetContent>
+        <SheetContent side="left" className="p-0 w-[270px] bg-[hsl(var(--sidebar))] border-0 flex flex-col [&>button]:text-white/80"><Brand className="pr-12" /><SideNav onNavigate={() => setMobile(false)} /></SheetContent>
       </Sheet>
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-30 h-16 border-b bg-background/80 backdrop-blur-xl flex items-center gap-3 px-4 sm:px-6 no-print" data-testid="top-header">

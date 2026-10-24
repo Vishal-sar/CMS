@@ -60,6 +60,7 @@ async def validate_class(class_id, section):
     return c, sec
 
 async def student_before(data, user, old):
+    if old and old.get("archived"): raise HTTPException(409, "Restore this student before editing")
     c, sec = await validate_class(data["class_id"], data["section"])
     if not old or (old["class_id"], old["section"]) != (data["class_id"], data["section"]):
         cnt = await db.students.count_documents({"class_id": data["class_id"], "section": data["section"], "status": "active"})

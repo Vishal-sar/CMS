@@ -172,6 +172,10 @@ class TestTimetable:
         # find a free slot in Grade 10-A
         cid = STATE["cls"]["id"]
         d, p = "Mon", 1
+        # iteration 2: timetable requires teacher assignment for subject/section
+        for sec in ("A", "B"):
+            a = admin.post(f"{API}/assignments", json={"teacher_id": tid, "class_id": cid, "section": sec, "subject_id": ctx["SCI"]["id"]})
+            assert a.status_code == 200, a.text
         r = admin.post(f"{API}/timetable", json={"class_id": cid, "section": "A", "day": d, "period_no": p, "subject_id": ctx["SCI"]["id"], "teacher_id": tid})
         assert r.status_code == 200, r.text
         STATE["slot"] = r.json()["id"]
