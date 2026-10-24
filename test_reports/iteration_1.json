@@ -1,0 +1,59 @@
+{
+  "summary": "First full E2E run of the School Management System. Backend: 35 pytest tests in /app/backend/tests/test_school_api.py covering auth (httpOnly cookies, refresh, CSRF origin guard, invalid login, lockout/rate limit), RBAC, students CRUD/archive/restore/search/filter/CSV, teachers/parents/create-login, classes (409 on duplicate), attendance (save, summary, future date 422), timetable (save + teacher conflict 409), exams (marks out-of-range 422, draft/submit/publish, results, report card, student sees only published), fees (generate + re-run skip, partial payment, overpayment 409, receipt, refund, void, parent scoping, Razorpay 503 not configured), homework (create/submit/grade), library issue/return, transport capacity 409, leave apply/approve + notification, announcement notifications, all 15 reports + CSV, audit logs, settings save, dashboards for 4 roles. 32/35 pass; the 3 failures are real bugs. Frontend (Playwright): login/logout for all 4 roles (role-specific dashboards and navs), invalid login error, teacher /app/settings redirects to /app, admissions create (auto ADM no) -> search -> archive -> restore, class filter, CSV export download, attendance mark Grade 9-A + summary percentages (date input max=today), timetable conflict toast, admin record partial payment with client-side overpay validation + receipt dialog, parent online-pay 'not configured' message, student report card, teacher creates homework -> student submits -> teacher grades 9/10, teacher applies leave, reports run + CSV, audit list, settings save, leave/calendar/announcements pages, dark mode toggle, mobile sidebar sheet. All requested flows work apart from the bugs listed below.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "DELETE /api/announcements/{id} and DELETE /api/homework-items/{id} (also POST .../restore)", "issue": "SECURITY: in core.crud, archive_item/restore_item skip the scope and ownership hooks. A teacher (write_roles include teacher) can archive announcements posted by the admin or other teachers, and homework owned by other teachers. Reproduced: admin posts an announcement, teacher DELETEs it, gets 200.", "priority": "HIGH"},
+      {"endpoint": "GET /api/attendance/sheet, POST /api/attendance/sheet, /attendance/summary, /exams/{id}/marks, /exams/{id}/results, /homework/{id}/submissions, capacity counts", "issue": "Archived students still show up. crud archive only sets archived=true and leaves status='active', but these queries filter on status:'active' only. Seen in the UI: archived TEST_ students were listed and marked present in the Grade 9-A attendance sheet and summary. Section capacity and transport capacity checks count them too.", "priority": "HIGH"},
+      {"endpoint": "GET /api/homework", "issue": "Archived homework is still listed for teachers and students. list_homework never adds archived:{$ne:true}. The teacher list shows it as 'Published' with an Archive button, so archiving from the UI looks like it does nothing.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/students (StudentIn._login_password)", "issue": "Pydantic v2 treats fields with a leading underscore as private attributes. They never appear in model_dump(), so the crud 'extra' dict is always empty and this create-login-on-admission path does nothing."},
+      {"endpoint": "POST /api/{kind}/{id}/restore", "issue": "Returns 200 even when the id does not exist (no matched_count check)."},
+      {"endpoint": "POST /api/timetable", "issue": "Does not check that the class/section exists or that the teacher is assigned to that subject/section. Any teacher can be put on any subject."},
+      {"endpoint": "GET /api/report-card/{eid}/{sid}", "issue": "Only checks exam.class_id, not exam.sections, so a student can open an exam created for a different section of the same class. Attendance on the report card counts all-time records, not the exam's academic year/term."},
+      {"endpoint": "POST /api/exams/{id}/marks", "issue": "Clearing a mark (marks=null, absent=false) is silently skipped, so a mark that was entered by mistake cannot be removed."},
+      {"endpoint": "PUT /api/settings", "issue": "body is an untyped dict. Only session_minutes and grading are validated, so wrong types (e.g. pass_percent as a string) are stored and can break result computation."},
+      {"endpoint": "Login rate limit (server.py RATE)", "issue": "An in-memory limit of 10 logins/min per IP. It is not shared across workers, and a school computer lab behind one NAT IP will hit 429 quickly. Consider keying on ip+email or raising the limit."},
+      {"endpoint": "send_email", "issue": "The Emergent email API returns 422 'undeliverable_recipient' for the *.demo seed addresses. This is expected, but the log only prints 'Client error 422 unknown'. Log r.text so the reason is visible."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Dashboard greeting", "issue": "The first word of the name is used: 'Good morning, Dr.' for Dr. Kavita Rao and 'Good morning, School' for School Administrator.", "selector": "[data-testid=dashboard-page] h1", "priority": "LOW"},
+      {"component": "Report card breadcrumbs", "issue": "Shows 'Home > Report-Card > Details > Details' (one 'Details' per ID segment).", "selector": "[data-testid=breadcrumbs]", "priority": "LOW"},
+      {"component": "Login redirect", "issue": "After user A logs out on a deep page, user B logging in next is sent to A's last page (e.g. /app/homework) instead of the dashboard.", "selector": "[data-testid=login-submit-button]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Archive homework / archive student", "issue": "Driven by the backend bugs above: archived items stay visible in the homework list, attendance sheet and summary.", "affected_selectors": ["[data-testid^=archive-hw-]", "[data-testid^=att-row-]"]}
+    ],
+    "design_issues": [
+      {"screen": "All forms (FormDialog type=date, attendance date, payment and report filters)", "issues": ["Uses the browser's native <input type='date'> (mm/dd/yyyy) instead of the shadcn Calendar/Popover date picker, so it looks different from the rest of the UI and uses a US date format in an INR/India app."]},
+      {"screen": "Parent header (desktop)", "issues": ["The child selector sits tight against the global search box. The toast covers the user name on login."]},
+      {"screen": "Mobile sidebar sheet", "issues": ["The sheet close (X) button overlaps the truncated school name in the brand area."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_school_api.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "core.crud: run the scope hook and an ownership hook (e.g. hooks['before_archive']) in archive_item/restore_item; teachers may only archive their own announcements/homework",
+    "Exclude archived students everywhere the code filters status:'active' (attendance sheet/save/summary, marks, results, submissions, capacity counts), or set status='archived' when a student is archived and restore the previous status on restore",
+    "GET /api/homework: add archived:{$ne:True} (and exclude status 'archived')",
+    "Fix StudentIn._login_password (rename it, e.g. login_password with exclude, or read it from the raw body)",
+    "Add a 404 to crud restore; validate class/section and teacher assignment in POST /timetable; check exam.sections in report-card",
+    "Minor UI: greeting name (skip honorifics / use the full name), report-card breadcrumb labels, reset the post-login redirect on logout, replace native date inputs with the shadcn date picker"
+  ],
+  "critical_code_review_comments": [
+    "core.crud generic archive/restore bypasses hooks (security), see backend critical #1",
+    "The status vs archived flag duality for students causes data leaks into operational screens",
+    "Pydantic private-attr misuse (_login_password) means dead code",
+    "PUT /settings accepts an untyped dict; use a Pydantic model with optional typed fields",
+    "routes_misc.py is 467 lines and growing; split it into homework/library/transport/leave/comms modules before it passes 700"
+  ],
+  "updated_files": ["/app/backend/tests/test_school_api.py"],
+  "success_rate": {"backend": "91% (32/35; the 3 failures are real bugs)", "frontend": "~95% (all requested flows work; only bug-driven issues and minor UI nits)"},
+  "test_credentials": "Used /app/memory/test_credentials.md (admin, teacher, student, parent). All valid.",
+  "seed_data_creation": "Created only TEST_-prefixed records (students, teachers, parents, class, exam, fee structure, invoices/payments, homework, book, route/vehicle, leaves, announcements). All of them were hard-deleted from Mongo afterwards, together with their attendance, marks, invoices, payments, submissions, notifications and users. One seeded leave decision and the attendance marks for today's Grade 9-A seed students remain (all present).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=... pytest tests/test_school_api.py -n 0 (must be -n 0: xdist splits the shared STATE and runs extra logins). The login rate limit is 10/min/IP, so wait about 60s between full runs and browser sessions that log in several times. The leave test uses a random future date to avoid the overlap 409. The timetable test uses its own TEST class (sections A,B). Grade 10 timetable is completely full. Today is 2026-10-24 (Sat, working day). Email to *.demo addresses fails with undeliverable_recipient (expected). Online payments return 503 (keys not configured, expected).",
+  "rca of the issue": "1) The teacher-can-archive bug: core.crud.archive_item/restore_item never call hooks['scope'] or before_save, so the ownership checks in ann_before/hw_before only run on create/update. 2) Archived students in attendance and other screens: archive sets archived=True but student.status stays 'active', and routes_academic/exams/misc filter only on status:'active'. Repro: create a student in 9-B, DELETE /api/students/{id}, GET /api/attendance/sheet?class_id=g9&section=B: the student is still listed. 3) Archived homework: routes_misc.list_homework builds q without an archived filter. Repro: DELETE /api/homework-items/{id}, GET /api/homework as the student: the item is still returned."
+}

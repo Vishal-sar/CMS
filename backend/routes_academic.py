@@ -153,6 +153,10 @@ async def save_slot(body: SlotIn, user=Depends(require("admin"))):
     p = next((p for p in s["periods"] if p["no"] == body.period_no), None)
     if not p or p["type"] != "class": raise HTTPException(422, "That period is a break or does not exist")
     if body.day not in s["working_days"]: raise HTTPException(422, f"{body.day} is not a working day")
+    c = await db.classes.find_one({"id": body.class_id}, {"_id": 0})
+    if not c or body.section not in [x["name"] for x in c.get("sections", [])]: raise HTTPException(422, "Invalid class/section")
+    if not await db.assignments.find_one({"class_id": body.class_id, "section": body.section, "subject_id": body.subject_id, "teacher_id": body.teacher_id}):
+        raise HTTPException(422, "This teacher is not assigned to teach this subject in this section (see Subjects → Teacher assignments)")
     base = {"day": body.day, "period_no": body.period_no}
     existing = await db.timetable.find_one({**base, "class_id": body.class_id, "section": body.section})
     exid = existing["id"] if existing else None

@@ -27,7 +27,6 @@ class StudentIn(BaseModel):
     previous_school: Optional[str] = None
     status: str = Field("active", pattern="^(active|inactive|transferred|graduated|archived)$")
     parent_ids: List[str] = []
-    _login_password: Optional[str] = None
 
 class TeacherIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)

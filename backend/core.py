@@ -233,8 +233,7 @@ def crud(router, path, coll, Model, read_roles=ROLES, write_roles=("admin",), se
         return clean(data)
 
     async def update_item(item_id: str, body: Model, user=Depends(require(*write_roles))):
-        old = await col.find_one({"id": item_id}, {"_id": 0})
-        if not old: raise HTTPException(404, "Not found")
+        old = await owned(item_id, user)
         data = body.model_dump()
         for k in [k for k in data if k.startswith("_")]: data.pop(k)
         if "before_save" in hooks: data = await hooks["before_save"](data, user, old)
@@ -244,15 +243,25 @@ def crud(router, path, coll, Model, read_roles=ROLES, write_roles=("admin",), se
         await audit(user, "update", coll, item_id, changed)
         return clean(await col.find_one({"id": item_id}, {"_id": 0}))
 
+    async def owned(item_id, user):
+        query = {"id": item_id}
+        if "scope" in hooks: query = {"$and": [query, await hooks["scope"](user)]}
+        old = await col.find_one(query, {"_id": 0})
+        if not old: raise HTTPException(404, "Not found")
+        if "owner_check" in hooks: await hooks["owner_check"](old, user)
+        return old
+
     async def archive_item(item_id: str, user=Depends(require(*write_roles))):
-        r = await col.update_one({"id": item_id}, {"$set": {"archived": True, "updated_at": now_iso()}})
-        if not r.matched_count: raise HTTPException(404, "Not found")
-        if "after_archive" in hooks: await hooks["after_archive"](item_id, user)
+        await owned(item_id, user)
+        extra = {"status": "archived"} if coll == "students" else {}
+        await col.update_one({"id": item_id}, {"$set": {"archived": True, "updated_at": now_iso(), **extra}})
         await audit(user, "archive", coll, item_id)
         return {"ok": True}
 
     async def restore_item(item_id: str, user=Depends(require(*write_roles))):
-        await col.update_one({"id": item_id}, {"$set": {"archived": False}})
+        await owned(item_id, user)
+        extra = {"status": "active"} if coll == "students" else {}
+        await col.update_one({"id": item_id}, {"$set": {"archived": False, **extra}})
         await audit(user, "restore", coll, item_id)
         return {"ok": True}
 
@@ -318,7 +327,7 @@ async def send_email(to, subject, html):
         r.raise_for_status()
         return True
     except Exception as e:
-        logger.warning(f"Email not sent: {e}")
+        logger.warning(f"Email not sent: {e} {getattr(getattr(e, 'response', None), 'text', '')[:200]}")
         return False
 
 def email_template(title, lines, cta=None):

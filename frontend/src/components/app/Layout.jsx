@@ -19,10 +19,10 @@ export function useTheme() {
   return [dark, setDark];
 }
 
-function Brand({ collapsed }) {
+function Brand({ collapsed, className = "" }) {
   const { school } = useAuth();
   return (
-    <Link to="/app" className="flex items-center gap-3 px-4 h-16 shrink-0" data-testid="sidebar-brand">
+    <Link to="/app" className={`flex items-center gap-3 px-4 h-16 shrink-0 ${className}`} data-testid="sidebar-brand">
       {school?.logo_file_id ? <img src={fileUrl(school.logo_file_id)} alt="logo" className="h-9 w-9 rounded-lg object-cover bg-white" />
         : <div className="h-9 w-9 rounded-lg bg-amber-400 grid place-items-center shrink-0"><GraduationCap className="h-5 w-5 text-[#0A192F]" /></div>}
       {!collapsed && <div className="min-w-0"><p className="font-display font-bold text-white text-sm leading-tight truncate">{school?.school_name || "EduPrime"}</p><p className="text-[11px] text-sky-300/80">{school?.academic_year}</p></div>}
@@ -119,13 +119,13 @@ function ChildSwitcher() {
 
 function Crumbs() {
   const { pathname } = useLocation();
-  const parts = pathname.split("/").filter(Boolean).slice(1);
+  const parts = pathname.split("/").filter(Boolean).slice(1).filter((p) => p.length < 20);
   return (
     <div className="hidden lg:flex items-center gap-1 text-sm text-muted-foreground" data-testid="breadcrumbs">
       <Link to="/app" className="hover:text-foreground">Home</Link>
       {parts.map((p, i) => { const to = "/app/" + parts.slice(0, i + 1).join("/"); return (
         <span key={to} className="flex items-center gap-1"><ChevronRight className="h-3.5 w-3.5" />
-          <Link to={to} className={i === parts.length - 1 ? "text-foreground font-medium" : "hover:text-foreground"}>{labelForPath(to) || (p.length > 20 ? "Details" : titleCase(p))}</Link></span>); })}
+          <Link to={to} className={i === parts.length - 1 ? "text-foreground font-medium" : "hover:text-foreground"}>{labelForPath(to) || titleCase(p.replace(/-/g, " "))}</Link></span>); })}
     </div>
   );
 }
@@ -148,7 +148,7 @@ export default function AppLayout() {
         </button>
       </aside>
       <Sheet open={mobile} onOpenChange={setMobile}>
-        <SheetContent side="left" className="p-0 w-[270px] bg-[hsl(var(--sidebar))] border-0 flex flex-col"><Brand /><SideNav onNavigate={() => setMobile(false)} /></SheetContent>
+        <SheetContent side="left" className="p-0 w-[270px] bg-[hsl(var(--sidebar))] border-0 flex flex-col"><Brand className="pr-12" /><SideNav onNavigate={() => setMobile(false)} /></SheetContent>
       </Sheet>
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-30 h-16 border-b bg-background/80 backdrop-blur-xl flex items-center gap-3 px-4 sm:px-6 no-print" data-testid="top-header">

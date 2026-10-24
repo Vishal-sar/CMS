@@ -45,7 +45,7 @@ export function Login() {
     e.preventDefault(); setErr("");
     if (!f.email || !f.password) { setErr("Enter your email and password"); return; }
     setBusy(true);
-    try { const { data } = await api.post("/auth/login", f); setUser(data); toast.success(`Welcome back, ${data.name}`); }
+    try { const { data } = await api.post("/auth/login", f); sessionStorage.removeItem("sms_loggedout"); setUser(data); toast.success(`Welcome back, ${data.name}`); }
     catch (er) { setErr(errMsg(er)); } finally { setBusy(false); }
   };
   return (

@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 app = FastAPI(title="EduPrime School Management System")
 
 _hits = defaultdict(list)
-RATE = {"/api/auth/login": (10, 60), "/api/auth/forgot-password": (5, 300), "/api/auth/reset-password": (10, 300)}
+RATE = {"/api/auth/login": (60, 60), "/api/auth/forgot-password": (5, 300), "/api/auth/reset-password": (10, 300)}
 
 @app.middleware("http")
 async def security(request: Request, call_next):

@@ -140,8 +140,12 @@ async def save_marks(eid: str, body: MarksIn, user=Depends(require("admin", "tea
             raise HTTPException(422, f"Marks must be between 0 and {es['max_marks']}")
     status = "submitted" if body.submit else "draft"
     for en in body.entries:
-        if en.marks is None and not en.absent: continue
         old = await db.marks.find_one({"exam_id": eid, "student_id": en.student_id, "subject_id": body.subject_id}, {"_id": 0})
+        if en.marks is None and not en.absent:
+            if old:
+                await db.marks.delete_one({"id": old["id"]})
+                await audit(user, "marks_cleared", "marks", old["id"], {"student_id": en.student_id, "from": old.get("marks")})
+            continue
         upd = {"$set": {"marks": None if en.absent else en.marks, "absent": en.absent, "status": status, "entered_by": user["id"], "updated_at": now_iso()},
                "$setOnInsert": {"id": new_id(), "created_at": now_iso()}}
         if old and e["status"] == "published" and (old.get("marks") != en.marks or old.get("absent") != en.absent):
@@ -201,7 +205,7 @@ async def set_remark(eid: str, body: RemarkIn, user=Depends(require("admin", "te
 @router.get("/report-card/{eid}/{sid}")
 async def report_card(eid: str, sid: str, user=Depends(get_current_user)):
     st = await assert_student(user, sid)
-    e = await db.exams.find_one({"id": eid, "class_id": st["class_id"]}, {"_id": 0})
+    e = await db.exams.find_one({"id": eid, "class_id": st["class_id"], "sections": st["section"]}, {"_id": 0})
     if not e: raise HTTPException(404, "Exam not found for this student")
     if user["role"] in ("student", "parent") and e["status"] != "published": raise HTTPException(403, "Results are not published yet")
     s = await get_settings(); sub = {x["id"]: x["name"] for x in await db.subjects.find({}, {"_id": 0}).to_list(1000)}

@@ -67,6 +67,7 @@ async def list_homework(status: str = "", student_id: str = "", page: int = 1, p
         if student_id: studs = [s for s in studs if s["id"] == student_id]
         q = {"$or": [{"class_id": s["class_id"], "section": s["section"]} for s in studs] or [{"id": "__none__"}], "status": "published"}
     if status and user["role"] in ("admin", "teacher"): q["status"] = status
+    q = {"$and": [q, {"archived": {"$ne": True}, "status": {"$ne": "archived"}}]}
     res = await paginate(db.homework, q, page, page_size, "-due_date")
     cls, sub = await names()
     for h in res["items"]:
@@ -95,7 +96,10 @@ async def hw_after(data, user, extra):
         uids = await audience_user_ids(["student", "parent"], [data["class_id"]], [data["section"]])
         await notify(uids, f"New homework: {data['title']}", f"Due {data['due_date']}", "/homework")
 
-crud(router, "/homework-items", "homework", HomeworkIn, read_roles=("admin", "teacher"), write_roles=("admin", "teacher"), hooks={"before_save": hw_before, "after_create": hw_after})
+async def hw_owner(old, user):
+    if user["role"] == "teacher" and old.get("teacher_id") != user["profile_id"]: raise HTTPException(403, "You can only change your own assignments")
+
+crud(router, "/homework-items", "homework", HomeworkIn, read_roles=("admin", "teacher"), write_roles=("admin", "teacher"), hooks={"before_save": hw_before, "after_create": hw_after, "owner_check": hw_owner})
 
 class SubmitIn(BaseModel):
     text: str = Field("", max_length=8000)
@@ -395,8 +399,11 @@ async def ann_after(data, user, extra):
     uids = await audience_user_ids(data["roles"], data["class_ids"] or None)
     await notify([u for u in uids if u != user["id"]], f"Announcement: {data['title']}", data["body"][:120], "/announcements")
 
+async def ann_owner(old, user):
+    if user["role"] == "teacher" and old.get("created_by") != user["id"]: raise HTTPException(403, "You can only change your own announcements")
+
 crud(router, "/announcements", "announcements", AnnIn, write_roles=("admin", "teacher"), search=("title", "body"), filters=("category",),
-     hooks={"scope": ann_scope, "before_save": ann_before, "after_create": ann_after})
+     hooks={"scope": ann_scope, "before_save": ann_before, "after_create": ann_after, "owner_check": ann_owner})
 
 @router.get("/notifications")
 async def my_notifs(user=Depends(get_current_user)):
@@ -433,8 +440,17 @@ async def settings_get(user=Depends(get_current_user)):
 
 @router.put("/settings")
 async def settings_put(body: dict, user=Depends(require("admin"))):
-    allowed = set(k for k in (await get_settings()).keys()) - {"id", "integrations"}
+    defaults = await get_settings()
+    allowed = set(defaults.keys()) - {"id", "integrations", "demo_seeded"}
     data = {k: v for k, v in body.items() if k in allowed}
+    for k, v in data.items():
+        d = defaults.get(k)
+        if isinstance(d, bool) and not isinstance(v, bool): raise HTTPException(422, f"{k} must be true or false")
+        if isinstance(d, (int, float)) and not isinstance(d, bool):
+            try: data[k] = float(v) if isinstance(d, float) else int(v)
+            except (TypeError, ValueError): raise HTTPException(422, f"{k} must be a number")
+        if isinstance(d, list) and not isinstance(v, list): raise HTTPException(422, f"{k} must be a list")
+        if isinstance(d, str) and d and not isinstance(v, str): raise HTTPException(422, f"{k} must be text")
     if "session_minutes" in data and not (5 <= int(data["session_minutes"]) <= 720): raise HTTPException(422, "Session timeout must be 5–720 minutes")
     if "grading" in data:
         for g in data["grading"]:

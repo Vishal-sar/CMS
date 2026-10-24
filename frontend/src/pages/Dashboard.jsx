@@ -117,9 +117,10 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data, loading, error, reload } = useFetch("/dashboard");
   const greet = new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening";
+  const first = user.name.split(" ").find((w) => !/^(dr|mr|mrs|ms|prof)\.?$/i.test(w)) || user.name;
   return (
     <div className="page" data-testid="dashboard-page">
-      <PageHeader title={`${greet}, ${user.name.split(" ")[0]}`} subtitle={<span className="flex items-center gap-2">Here's what's happening at school today. <DemoNote /></span>} />
+      <PageHeader title={user.role === "admin" ? `${greet}` : `${greet}, ${first}`} subtitle={<span className="flex items-center gap-2">Here's what's happening at school today. <DemoNote /></span>} />
       {loading && !data ? <Loading /> : error ? <ErrorBox message={error} onRetry={reload} /> :
         user.role === "admin" ? <AdminDash d={data} /> : user.role === "teacher" ? <TeacherDash d={data} /> : <FamilyDash d={data} role={user.role} />}
     </div>

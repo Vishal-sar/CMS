@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("session-expired", h);
   }, []);
 
-  const logout = async () => { try { await api.post("/auth/logout"); } finally { setUser(false); } };
+  const logout = async () => { sessionStorage.setItem("sms_loggedout", "1"); try { await api.post("/auth/logout"); } finally { setUser(false); } };
   const pickChild = (id) => { setChildId(id); localStorage.setItem("sms_child", id); };
 
   return <AuthCtx.Provider value={{ user, setUser, logout, school, loadSchool, reload: loadMe, childId, pickChild }}>{children}</AuthCtx.Provider>;
@@ -36,7 +36,7 @@ export function Protected({ roles, children }) {
   const { user } = useAuth();
   const loc = useLocation();
   if (user === null) return <div className="min-h-screen grid place-items-center text-muted-foreground" data-testid="auth-loading">Loading…</div>;
-  if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
+  if (!user) return <Navigate to="/login" state={sessionStorage.getItem("sms_loggedout") ? undefined : { from: loc.pathname }} replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/app" replace />;
   return children;
 }
